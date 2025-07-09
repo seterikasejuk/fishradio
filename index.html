@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>FishCast PWA Upgraded</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0077cc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="icon.png">
+  <link rel="apple-touch-icon" href="icon.png">
+  <style>
+    button { margin: 5px; padding: 10px; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <h1>🎧 FishCast PWA (Upgraded)</h1>
+
+  <input type="file" id="breakUpload" multiple accept="audio/*"><br>
+  <audio id="player" controls style="width: 100%;"></audio><br>
+  <button onclick="skip(-10)">⏪ 10s</button>
+  <button onclick="skip(10)">⏩ 10s</button>
+
+  <div id="episodeList"></div>
+
+  <script src="register.js"></script>
+  <script>
+    const player = document.getElementById("player");
+    const breakUpload = document.getElementById("breakUpload");
+    const episodeListDiv = document.getElementById("episodeList");
+
+    let breakFiles = [];
+    let feedURLs = [
+      "https://media.rss.com/drzulkiflialbakri/feed.xml",
+      "https://feeds.megaphone.fm/atlanticgoodonpaper",
+      "https://anchor.fm/s/13f65d84/podcast/rss",
+      "https://feeds.npr.org/510333/podcast.xml",
+      "https://feeds.simplecast.com/_IjaDYAj",
+      "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/cd3a03ee-0899-478b-a26a-b28e0149e547/285bd8ba-ef5e-40da-89a1-b28e0149eeb9/podcast.rss"
+    ];
+    let episodes = [];
+    let currentIndex = 0;
+    let breakInterval = 10 * 60 * 1000;
+    let breakTimer;
+    let playingBreak = false;
+    let resumeTime = 0;
+    let resumeURL = "";
+
+    function skip(seconds) {
+      player.currentTime += seconds;
+    }
+
+    breakUpload.addEventListener("change", (e) => {
+      breakFiles = Array.from(e.target.files);
+    });
+
+    function fetchFeeds() {
+      const promises = feedURLs.map(url =>
+        fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`)
+          .then(res => res.json())
+          .then(data => {
+            const items = data.items.filter(item => item.enclosure && item.enclosure.link.endsWith('.mp3'));
+            episodes.push(...items);
+          })
+      );
+
+      Promise.all(promises).then(() => {
+        displayEpisodes();
+        loadEpisode(currentIndex);
+      });
+    }
+
+    function displayEpisodes() {
+      episodeListDiv.innerHTML = "";
+      episodes.forEach((ep, idx) => {
+        const btn = document.createElement("button");
+        btn.textContent = ep.title;
+        btn.onclick = () => loadEpisode(idx);
+        episodeListDiv.appendChild(btn);
+      });
+    }
+
+    function loadEpisode(index) {
+      currentIndex = index;
+      const episode = episodes[index];
+      player.src = episode.enclosure.link;
+      player.play();
+      setBreakTimer();
+      saveHistory(episode.title, episode.enclosure.link);
+    }
+
+    function setBreakTimer() {
+      clearTimeout(breakTimer);
+      breakTimer = setTimeout(() => {
+        insertBreak();
+      }, breakInterval);
+    }
+
+    function insertBreak() {
+      if (breakFiles.length === 0) return;
+
+      resumeTime = player.currentTime;
+      resumeURL = player.src;
+      const breakFile = breakFiles[Math.floor(Math.random() * breakFiles.length)];
+      const breakSrc = URL.createObjectURL(breakFile);
+
+      playingBreak = true;
+      player.src = breakSrc;
+      player.onended = () => {
+        URL.revokeObjectURL(breakSrc);
+        resumeEpisode();
+      };
+      player.play();
+    }
+
+    function resumeEpisode() {
+      if (!playingBreak) return;
+      playingBreak = false;
+      player.src = resumeURL;
+      player.onloadedmetadata = () => {
+        player.currentTime = resumeTime;
+        player.play();
+        setBreakTimer();
+      };
+    }
+
+    player.onended = () => {
+      if (!playingBreak && currentIndex + 1 < episodes.length) {
+        loadEpisode(currentIndex + 1);
+      }
+    };
+
+    function saveHistory(title, url) {
+      const history = JSON.parse(localStorage.getItem("listeningHistory") || "[]");
+      history.push({ title, url, time: new Date().toISOString() });
+      localStorage.setItem("listeningHistory", JSON.stringify(history));
+    }
+
+    fetchFeeds();
+  </script>
+</body>
+</html>
