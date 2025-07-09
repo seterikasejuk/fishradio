@@ -16,6 +16,7 @@
   <h1>🎧 FishCast PWA (Upgraded)</h1>
 
   <input type="file" id="breakUpload" multiple accept="audio/*"><br>
+  <button onclick="shuffleEpisodes()">🔀 Shuffle</button>
   <audio id="player" controls style="width: 100%;"></audio><br>
   <button onclick="skip(-10)">⏪ 10s</button>
   <button onclick="skip(10)">⏩ 10s</button>
@@ -33,9 +34,7 @@
       "https://media.rss.com/drzulkiflialbakri/feed.xml",
       "https://feeds.megaphone.fm/atlanticgoodonpaper",
       "https://anchor.fm/s/13f65d84/podcast/rss",
-      "https://feeds.npr.org/510333/podcast.xml",
-      "https://feeds.simplecast.com/_IjaDYAj",
-      "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/cd3a03ee-0899-478b-a26a-b28e0149e547/285bd8ba-ef5e-40da-89a1-b28e0149eeb9/podcast.rss"
+      "https://feeds.simplecast.com/_IjaDYAj"
     ];
     let episodes = [];
     let currentIndex = 0;
@@ -86,6 +85,14 @@
       player.play();
       setBreakTimer();
       saveHistory(episode.title, episode.enclosure.link);
+    }
+
+    function shuffleEpisodes() {
+      for (let i = episodes.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [episodes[i], episodes[j]] = [episodes[j], episodes[i]];
+      }
+      displayEpisodes();
     }
 
     function setBreakTimer() {
